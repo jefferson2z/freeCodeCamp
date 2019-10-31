@@ -1,19 +1,19 @@
 const path = require('path');
-const { dasherize } = require('..');
+const { dasherize } = require('../../../utils/slugs');
 
 const { viewTypes } = require('../challengeTypes');
 
 const backend = path.resolve(
   __dirname,
-  '../../src/templates/Challenges/backend/Show.js'
+  '../../src/templates/Challenges/projects/backend/Show.js'
 );
 const classic = path.resolve(
   __dirname,
   '../../src/templates/Challenges/classic/Show.js'
 );
-const project = path.resolve(
+const frontend = path.resolve(
   __dirname,
-  '../../src/templates/Challenges/project/Show.js'
+  '../../src/templates/Challenges/projects/frontend/Show.js'
 );
 const intro = path.resolve(
   __dirname,
@@ -28,14 +28,20 @@ const views = {
   backend,
   classic,
   modern: classic,
-  project
+  frontend
   // quiz: Quiz
 };
 
 const getNextChallengePath = (node, index, nodeArray) => {
   const next = nodeArray[index + 1];
-  return next ? next.node.fields.slug : '/';
+  return next ? next.node.fields.slug : '/learn';
 };
+
+const getPrevChallengePath = (node, index, nodeArray) => {
+  const prev = nodeArray[index - 1];
+  return prev ? prev.node.fields.slug : '/learn';
+};
+
 const getTemplateComponent = challengeType => views[viewTypes[challengeType]];
 
 const getIntroIfRequired = (node, index, nodeArray) => {
@@ -74,6 +80,7 @@ exports.createChallengePages = createPage => ({ node }, index, thisArray) => {
         template,
         required,
         nextChallengePath: getNextChallengePath(node, index, thisArray),
+        prevChallengePath: getPrevChallengePath(node, index, thisArray),
         id
       },
       slug

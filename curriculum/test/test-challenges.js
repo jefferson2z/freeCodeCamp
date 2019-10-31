@@ -27,8 +27,6 @@ const jsdom = require('jsdom');
 const dom = new jsdom.JSDOM('');
 global.document = dom.window.document;
 
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
-
 const vm = require('vm');
 
 const puppeteer = require('puppeteer');
@@ -40,7 +38,7 @@ const ChallengeTitles = require('./utils/challengeTitles');
 const { challengeSchemaValidator } = require('../schema/challengeSchema');
 const { challengeTypes } = require('../../client/utils/challengeTypes');
 
-const { supportedLangs } = require('../utils');
+const { testedLangs } = require('../utils');
 
 const {
   buildDOMChallenge,
@@ -83,13 +81,12 @@ let page;
 runTests();
 
 async function runTests() {
-  let testLangs = [...supportedLangs];
-  if (process.env.TEST_CHALLENGES_FOR_LANGS) {
-    const filterLangs = process.env.TEST_CHALLENGES_FOR_LANGS.split(',').map(
-      lang => lang.trim().toLowerCase()
-    );
-    testLangs = testLangs.filter(lang => filterLangs.includes(lang));
-  }
+  process.on('unhandledRejection', err => {
+    spinner.stop();
+    throw new Error(`unhandledRejection: ${err.name}, ${err.message}`);
+  });
+
+  const testLangs = testedLangs();
 
   const challenges = await Promise.all(
     testLangs.map(lang => getChallenges(lang))
@@ -108,8 +105,15 @@ async function runTests() {
         logLevel: 0
       });
       browser = await puppeteer.launch({
-        args: ['--no-sandbox']
-        // dumpio: true
+        args: [
+          // Required for Docker version of Puppeteer
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          // This will write shared memory files into /tmp instead of /dev/shm,
+          // because Docker’s default for /dev/shm is 64MB
+          '--disable-dev-shm-usage'
+          // dumpio: true
+        ]
       });
       global.Worker = createPseudoWorker(await newPageContext(browser));
       page = await newPageContext(browser);
@@ -253,7 +257,7 @@ function populateTestsForLang({ lang, challenges }) {
 
         describe('Check tests against solutions', function() {
           solutions.forEach((solution, index) => {
-            it(`Solution ${index + 1}`, async function() {
+            it(`Solution ${index + 1} must pass the tests`, async function() {
               this.timeout(5000 * tests.length + 1000);
               const testRunner = await createTestRunner(
                 { ...challenge, files },
@@ -289,7 +293,7 @@ async function createTestRunnerForDOMChallenge(
   await context.reload();
   await context.setContent(build);
   await context.evaluate(
-    async(sources, loadEnzyme) => {
+    async (sources, loadEnzyme) => {
       const code = sources && 'index' in sources ? sources['index'] : '';
       const getUserInput = fileName => sources[fileName];
       await document.__initTestFrame({ code, getUserInput, loadEnzyme });
@@ -298,7 +302,7 @@ async function createTestRunnerForDOMChallenge(
     loadEnzyme
   );
 
-  return async({ text, testString }) => {
+  return async ({ text, testString }) => {
     try {
       const { pass, err } = await Promise.race([
         new Promise((_, reject) => setTimeout(() => reject('timeout'), 5000)),
@@ -307,13 +311,10 @@ async function createTestRunnerForDOMChallenge(
         }, testString)
       ]);
       if (!pass) {
-        throw AssertionError(`${text}\n${err.message}`);
+        throw new AssertionError(err.message);
       }
     } catch (err) {
-      throw typeof err === 'string'
-        ? `${text}\n${err}`
-        : (err.message = `${text}
-        ${err.message}`);
+      reThrow(err, text);
     }
   };
 }
@@ -326,23 +327,31 @@ async function createTestRunnerForJSChallenge({ files }, solution) {
   const { build, sources } = await buildJSChallenge({ files });
   const code = sources && 'index' in sources ? sources['index'] : '';
 
-  const testWorker = createWorker('test-evaluator');
-  return async({ text, testString }) => {
+  const testWorker = createWorker('test-evaluator', { terminateWorker: true });
+  return async ({ text, testString }) => {
     try {
       const { pass, err } = await testWorker.execute(
         { testString, build, code, sources },
         5000
-      );
+      ).done;
       if (!pass) {
-        throw new AssertionError(`${text}\n${err.message}`);
+        throw new AssertionError(err.message);
       }
     } catch (err) {
-      throw typeof err === 'string'
-        ? `${text}\n${err}`
-        : (err.message = `${text}
-        ${err.message}`);
-    } finally {
-      testWorker.killWorker();
+      reThrow(err, text);
     }
   };
+}
+
+function reThrow(err, text) {
+  if (typeof err === 'string') {
+    throw new AssertionError(
+      `${text}
+         ${err}`
+    );
+  } else {
+    err.message = `${text}
+       ${err.message}`;
+    throw err;
+  }
 }

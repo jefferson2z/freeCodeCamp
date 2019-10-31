@@ -14,6 +14,7 @@ import {
   closeDonationModal,
   isDonationModalOpenSelector
 } from '../../../redux';
+import { stripeScriptLoader } from '../../../utils/scriptLoaders';
 
 import PoweredByStripe from './poweredByStripe';
 import DonateText from './DonateText';
@@ -22,7 +23,9 @@ import '../Donation.css';
 
 const mapStateToProps = createSelector(
   isDonationModalOpenSelector,
-  show => ({ show })
+  show => ({
+    show
+  })
 );
 
 const mapDispatchToProps = dispatch =>
@@ -45,23 +48,32 @@ class DonateModal extends Component {
       stripe: null
     };
     this.renderMaybe = this.renderMaybe.bind(this);
+    this.handleStripeLoad = this.handleStripeLoad.bind(this);
   }
   componentDidMount() {
     if (window.Stripe) {
-      /* eslint-disable react/no-did-mount-set-state */
-      this.setState(state => ({
-        ...state,
-        stripe: window.Stripe(stripePublicKey)
-      }));
+      this.handleStripeLoad();
+    } else if (document.querySelector('#stripe-js')) {
+      document
+        .querySelector('#stripe-js')
+        .addEventListener('load', this.handleStripeLoad);
     } else {
-      document.querySelector('#stripe-js').addEventListener('load', () => {
-        // Create Stripe instance once Stripe.js loads
-        console.info('stripe has loaded');
-        this.setState(state => ({
-          ...state,
-          stripe: window.Stripe(stripePublicKey)
-        }));
-      });
+      stripeScriptLoader(this.handleStripeLoad);
+    }
+  }
+
+  handleStripeLoad() {
+    // Create Stripe instance once Stripe.js loads
+    this.setState(state => ({
+      ...state,
+      stripe: window.Stripe(stripePublicKey)
+    }));
+  }
+
+  componentWillUnmount() {
+    const stripeMountPoint = document.querySelector('#stripe-js');
+    if (stripeMountPoint) {
+      stripeMountPoint.removeEventListener('load', this.handleStripeLoad);
     }
   }
 
@@ -73,7 +85,9 @@ class DonateModal extends Component {
     };
     return (
       <div className='modal-close-btn-container'>
-        <Button bsStyle='link' onClick={handleClick}>Close</Button>
+        <Button bsStyle='link' onClick={handleClick}>
+          Close
+        </Button>
       </div>
     );
   }
@@ -84,25 +98,25 @@ class DonateModal extends Component {
       ga.modalview('/donation-modal');
     }
     return (
-        <StripeProvider stripe={this.state.stripe}>
-          <Elements>
-            <Modal bsSize='lg' className='donation-modal' show={show}>
-              <Modal.Header className='fcc-modal'>
-                <Modal.Title className='text-center'>
-                  Support Our NonProfit
-                </Modal.Title>
-              </Modal.Header>
-              <Modal.Body>
-                <DonateText />
-                <DonateForm />
-                {this.renderMaybe()}
-              </Modal.Body>
-              <Modal.Footer>
+      <StripeProvider stripe={this.state.stripe}>
+        <Elements>
+          <Modal bsSize='lg' className='donation-modal' show={show}>
+            <Modal.Header className='fcc-modal'>
+              <Modal.Title className='text-center'>
+                Support Our NonProfit
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <DonateText />
+              <DonateForm />
+              {this.renderMaybe()}
+            </Modal.Body>
+            <Modal.Footer>
               <PoweredByStripe />
-              </Modal.Footer>
-            </Modal>
-          </Elements>
-        </StripeProvider>
+            </Modal.Footer>
+          </Modal>
+        </Elements>
+      </StripeProvider>
     );
   }
 }

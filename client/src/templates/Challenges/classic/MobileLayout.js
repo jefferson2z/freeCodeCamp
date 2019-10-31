@@ -33,6 +33,9 @@ const propTypes = {
 };
 
 class MobileLayout extends Component {
+  componentDidMount() {
+    if (this.props.currentTab !== 1) this.props.moveToTab(1);
+  }
   render() {
     const {
       currentTab,
@@ -58,8 +61,8 @@ class MobileLayout extends Component {
           defaultActiveKey={1}
           id='challenge-page-tabs'
           onSelect={moveToTab}
-          >
-          <TabPane eventKey={1} title='Instructions'>
+        >
+          <TabPane eventKey={1} title='Info'>
             {instructions}
           </TabPane>
           <TabPane eventKey={2} title='Code' {...editorTabPaneProps}>

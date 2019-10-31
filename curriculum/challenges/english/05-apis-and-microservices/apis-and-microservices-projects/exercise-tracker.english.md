@@ -3,13 +3,14 @@ id: 5a8b073d06fa14fcfde687aa
 title: Exercise Tracker
 challengeType: 4
 isRequired: true
+forumTopicId: 301505
 ---
 
 ## Description
 <section id='description'>
 Build a full stack JavaScript app that is functionally similar to this: <a href='https://fuschia-custard.glitch.me/' target='_blank'>https://fuschia-custard.glitch.me/</a>.
 Working on this project will involve you writing your code on Glitch on our starter project. After completing this project you can copy your public glitch url (to the homepage of your app) into this screen to test it! Optionally you may choose to write your project on another platform but it must be publicly visible for our testing.
-Start this project on Glitch using <a href='https://glitch.com/#!/import/github/freeCodeCamp/boilerplate-project-exercisetracker/' target='_blank'>this link</a> or clone <a href='https://github.com/freeCodeCamp/boilerplate-project-exercisetracker/'>this repository</a> on GitHub! If you use Glitch, remember to save the link to your project somewhere safe!
+Start this project on Glitch using <a href='https://glitch.com/edit/#!/remix/clone-from-repo?REPO_URL=https://github.com/freeCodeCamp/boilerplate-project-exercisetracker/' target='_blank'>this link</a> or clone <a href='https://github.com/freeCodeCamp/boilerplate-project-exercisetracker/'>this repository</a> on GitHub! If you use Glitch, remember to save the link to your project somewhere safe!
 </section>
 
 ## Instructions
@@ -46,6 +47,11 @@ tests:
 <section id='solution'>
 
 ```js
-// solution required
+/**
+  Backend challenges don't need solutions, 
+  because they would need to be tested against a full working project. 
+  Please check our contributing guidelines to learn more.
+*/
 ```
+
 </section>

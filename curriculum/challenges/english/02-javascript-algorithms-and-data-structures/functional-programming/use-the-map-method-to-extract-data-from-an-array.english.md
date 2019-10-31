@@ -2,13 +2,14 @@
 id: 587d7b8f367417b2b2512b61
 title: Use the map Method to Extract Data from an Array
 challengeType: 1
+forumTopicId: 18214
 ---
 
 ## Description
 <section id='description'>
 So far we have learned to use pure functions to avoid side effects in a program. Also, we have seen the value in having a function only depend on its input arguments.
 This is only the beginning. As its name suggests, functional programming is centered around a theory of functions.
-It would make sense to be able to pass them as arguments to other functions, and return a function from another function. Functions are considered <code>First Class Objects</code> in JavaScript, which means they can be used like any other object. They can be saved in variables, stored in an object, or passed as function arguments.
+It would make sense to be able to pass them as arguments to other functions, and return a function from another function. Functions are considered <dfn>first class objects</dfn> in JavaScript, which means they can be used like any other object. They can be saved in variables, stored in an object, or passed as function arguments.
 Let's start with some simple array functions, which are methods on the array object prototype. In this exercise we are looking at <code>Array.prototype.map()</code>, or more simply <code>map</code>.
 Remember that the <code>map</code> method is a way to iterate over each item in an array. It creates a new array (without changing the original one) after applying a callback function to every element.
 </section>
@@ -24,13 +25,13 @@ The <code>watchList</code> array holds objects with information on several movie
 ```yml
 tests:
   - text: The <code>watchList</code> variable should not change.
-    testString: assert(watchList[0].Title === "Inception" && watchList[4].Director == "James Cameron", 'The <code>watchList</code> variable should not change.');
+    testString: assert(watchList[0].Title === "Inception" && watchList[4].Director == "James Cameron");
   - text: Your code should not use a <code>for</code> loop.
-    testString: assert(!code.match(/for\s*?\(.+?\)/g), 'Your code should not use a <code>for</code> loop.');
+    testString: assert(!removeJSComments(code).match(/for\s*?\(.*?\)/));
   - text: Your code should use the <code>map</code> method.
-    testString: assert(code.match(/\.map/g), 'Your code should use the <code>map</code> method.');
+    testString: assert(code.match(/\.map/g));
   - text: <code>rating</code> should equal <code>[{"title":"Inception","rating":"8.8"},{"title":"Interstellar","rating":"8.6"},{"title":"The Dark Knight","rating":"9.0"},{"title":"Batman Begins","rating":"8.3"},{"title":"Avatar","rating":"7.9"}]</code>.
-    testString: assert(JSON.stringify(rating) === JSON.stringify([{"title":"Inception","rating":"8.8"},{"title":"Interstellar","rating":"8.6"},{"title":"The Dark Knight","rating":"9.0"},{"title":"Batman Begins","rating":"8.3"},{"title":"Avatar","rating":"7.9"}]), '<code>rating</code> should equal <code>[{"title":"Inception","rating":"8.8"},{"title":"Interstellar","rating":"8.6"},{"title":"The Dark Knight","rating":"9.0"},{"title":"Batman Begins","rating":"8.3"},{"title":"Avatar","rating":"7.9"}]</code>.');
+    testString: assert(JSON.stringify(rating) === JSON.stringify([{"title":"Inception","rating":"8.8"},{"title":"Interstellar","rating":"8.6"},{"title":"The Dark Knight","rating":"9.0"},{"title":"Batman Begins","rating":"8.3"},{"title":"Avatar","rating":"7.9"}]));
 
 ```
 
@@ -170,7 +171,14 @@ console.log(JSON.stringify(rating));
 
 </div>
 
+### After Test
+<div id='js-teardown'>
 
+```js
+const removeJSComments = str => str.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+```
+
+</div>
 
 </section>
 
@@ -299,4 +307,5 @@ var rating = watchList.map(function(movie) {
   }
 });
 ```
+
 </section>

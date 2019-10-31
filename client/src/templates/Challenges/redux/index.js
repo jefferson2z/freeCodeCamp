@@ -1,8 +1,6 @@
 import { createAction, handleActions } from 'redux-actions';
-import { reducer as reduxFormReducer } from 'redux-form';
 
 import { createTypes } from '../../../../utils/stateManagement';
-import { createAsyncTypes } from '../../../utils/createTypes';
 
 import { createPoly } from '../utils/polyvinyl';
 import challengeModalEpic from './challenge-modal-epic';
@@ -11,20 +9,21 @@ import codeLockEpic from './code-lock-epic';
 import createQuestionEpic from './create-question-epic';
 import codeStorageEpic from './code-storage-epic';
 
-import { createIdToNameMapSaga } from './id-to-name-map-saga';
 import { createExecuteChallengeSaga } from './execute-challenge-saga';
 import { createCurrentChallengeSaga } from './current-challenge-saga';
 import { challengeTypes } from '../../../../utils/challengeTypes';
+import { completedChallengesSelector } from '../../../redux';
 
 export const ns = 'challenge';
 export const backendNS = 'backendChallenge';
 
 const initialState = {
+  canFocusEditor: true,
   challengeFiles: {},
-  challengeIdToNameMap: {},
   challengeMeta: {
     id: '',
     nextChallengePath: '/',
+    prevChallengePath: '/',
     introPath: '',
     challengeType: -1
   },
@@ -49,6 +48,7 @@ export const types = createTypes(
     'initTests',
     'initConsole',
     'initLogs',
+    'updateBackendFormValues',
     'updateConsole',
     'updateChallengeMeta',
     'updateFile',
@@ -78,7 +78,7 @@ export const types = createTypes(
 
     'moveToTab',
 
-    ...createAsyncTypes('fetchIdToNameMap')
+    'setEditorFocusability'
   ],
   ns
 );
@@ -92,7 +92,6 @@ export const epics = [
 ];
 
 export const sagas = [
-  ...createIdToNameMapSaga(types),
   ...createExecuteChallengeSaga(types),
   ...createCurrentChallengeSaga(types)
 ];
@@ -113,18 +112,15 @@ export const createFiles = createAction(types.createFiles, challengeFiles =>
     )
 );
 
-export const fetchIdToNameMap = createAction(types.fetchIdToNameMap);
-export const fetchIdToNameMapComplete = createAction(
-  types.fetchIdToNameMapComplete
-);
-export const fetchIdToNameMapError = createAction(types.fetchIdToNameMapError);
-
 export const createQuestion = createAction(types.createQuestion);
 export const initTests = createAction(types.initTests);
 export const updateTests = createAction(types.updateTests);
 
 export const initConsole = createAction(types.initConsole);
 export const initLogs = createAction(types.initLogs);
+export const updateBackendFormValues = createAction(
+  types.updateBackendFormValues
+);
 export const updateChallengeMeta = createAction(types.updateChallengeMeta);
 export const updateFile = createAction(types.updateFile);
 export const updateConsole = createAction(types.updateConsole);
@@ -155,13 +151,18 @@ export const submitChallenge = createAction(types.submitChallenge);
 
 export const moveToTab = createAction(types.moveToTab);
 
+export const setEditorFocusability = createAction(types.setEditorFocusability);
+
 export const currentTabSelector = state => state[ns].currentTab;
 export const challengeFilesSelector = state => state[ns].challengeFiles;
-export const challengeIdToNameMapSelector = state =>
-  state[ns].challengeIdToNameMap;
 export const challengeMetaSelector = state => state[ns].challengeMeta;
 export const challengeTestsSelector = state => state[ns].challengeTests;
 export const consoleOutputSelector = state => state[ns].consoleOut;
+export const isChallengeCompletedSelector = state => {
+  const completedChallenges = completedChallengesSelector(state);
+  const { id: currentChallengeId } = challengeMetaSelector(state);
+  return completedChallenges.some(({ id }) => id === currentChallengeId);
+};
 export const isCodeLockedSelector = state => state[ns].isCodeLocked;
 export const isCompletionModalOpenSelector = state =>
   state[ns].modal.completion;
@@ -171,7 +172,8 @@ export const isResetModalOpenSelector = state => state[ns].modal.reset;
 export const isBuildEnabledSelector = state => state[ns].isBuildEnabled;
 export const successMessageSelector = state => state[ns].successMessage;
 
-export const backendFormValuesSelector = state => state.form[backendNS] || {};
+export const backendFormValuesSelector = state =>
+  state[ns].backendFormValues || {};
 export const projectFormValuesSelector = state =>
   state[ns].projectFormValues || {};
 
@@ -187,15 +189,20 @@ export const challengeDataSelector = state => {
       files: challengeFilesSelector(state)
     };
   } else if (challengeType === challengeTypes.backend) {
-    const { solution: { value: url } = {} } = backendFormValuesSelector(state);
+    const { solution: url = {} } = backendFormValuesSelector(state);
     challengeData = {
       ...challengeData,
       url
     };
-  } else if (
-    challengeType === challengeTypes.frontEndProject ||
-    challengeType === challengeTypes.backendEndProject
-  ) {
+  } else if (challengeType === challengeTypes.backEndProject) {
+    const values = projectFormValuesSelector(state);
+    const { solution: url } = values;
+    challengeData = {
+      ...challengeData,
+      ...values,
+      url
+    };
+  } else if (challengeType === challengeTypes.frontEndProject) {
     challengeData = {
       ...challengeData,
       ...projectFormValuesSelector(state)
@@ -215,12 +222,12 @@ export const challengeDataSelector = state => {
   return challengeData;
 };
 
+export const canFocusEditorSelector = state => state[ns].canFocusEditor;
+
+const MAX_LOGS_SIZE = 64 * 1024;
+
 export const reducer = handleActions(
   {
-    [types.fetchIdToNameMapComplete]: (state, { payload }) => ({
-      ...state,
-      challengeIdToNameMap: payload
-    }),
     [types.createFiles]: (state, { payload }) => ({
       ...state,
       challengeFiles: payload
@@ -259,19 +266,17 @@ export const reducer = handleActions(
     }),
     [types.initLogs]: state => ({
       ...state,
-      logsOut: []
+      logsOut: ''
     }),
     [types.updateLogs]: (state, { payload }) => ({
       ...state,
-      logsOut: [...state.logsOut, payload]
+      logsOut: (state.logsOut + '\n' + payload).slice(-MAX_LOGS_SIZE)
     }),
     [types.logsToConsole]: (state, { payload }) => ({
       ...state,
       consoleOut:
         state.consoleOut +
-        (state.logsOut.length
-          ? '\n' + payload + '\n' + state.logsOut.join('\n')
-          : '')
+        (state.logsOut ? '\n' + payload + '\n' + state.logsOut : '')
     }),
     [types.updateChallengeMeta]: (state, { payload }) => ({
       ...state,
@@ -300,6 +305,10 @@ export const reducer = handleActions(
         testString
       })),
       consoleOut: ''
+    }),
+    [types.updateBackendFormValues]: (state, { payload }) => ({
+      ...state,
+      backendFormValues: payload
     }),
     [types.updateProjectFormValues]: (state, { payload }) => ({
       ...state,
@@ -346,28 +355,11 @@ export const reducer = handleActions(
     [types.executeChallenge]: state => ({
       ...state,
       currentTab: 3
+    }),
+    [types.setEditorFocusability]: (state, { payload }) => ({
+      ...state,
+      canFocusEditor: payload
     })
   },
   initialState
 );
-
-const resetProjectFormValues = handleActions(
-  {
-    [types.updateProjectFormValues]: (state, { payload: { solution } }) => {
-      if (!solution) {
-        return {
-          ...state,
-          solution: {},
-          githubLink: {}
-        };
-      }
-      return state;
-    }
-  },
-  {}
-);
-
-export const formReducer = reduxFormReducer.plugin({
-  'frond-end-form': resetProjectFormValues,
-  'back-end-form': resetProjectFormValues
-});
